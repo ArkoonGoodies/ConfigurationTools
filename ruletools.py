@@ -155,44 +155,43 @@ class Rule:
         self.element = element
 
     def __repr__(self):
-        r = str(self.Id)
-        r += ' - ' + self.name.encode(options.charset)
+        r = options.sep.join((str(self.Id),self.name.encode(options.charset)))
         if isColumns('SRC') is True:
-            r += ' Sources:'
+            r += options.sep 
             if len(self.sources) != 0:
                 for s in self.sources:
                     r += printGuid(s)
                     if not s is self.sources[-1]:
-                        r += ','
+                        r += ' '
             else:
                 r += 'All'
 
         if isColumns('DST') is True:
-            r +=' Destinations:' 
+            r += options.sep
             if len(self.dests) != 0:
                 for d in self.dests:
                     r += printGuid(d)
                     if not d is self.dests[-1]:
-                        r += ','
+                        r += ' '
             else:
                 r += 'All'
 
         if isColumns('SRV') is True:
-            r+=' Services:' 
+            r += options.sep
             if len(self.srvcs) != 0:
                 for s in self.srvcs:
                     r += printGuid(s)
                     if not s is self.srvcs[-1]:
-                        r += ','
+                        r += ' '
             else:
                 r += 'All'
 
         if isColumns('ACT') is True:
-            r += ' Action:'+self.action
+            r += options.sep+self.action
         if isColumns('LOG') is True:
-            r += ' Log:'+self.log
+            r += options.sep+self.log
         if isColumns('COMP') is True:
-            r += ' Complexity:'+str(self.comp)
+            r += options.sep+str(self.comp)
         return r
         
     def __cmp__(self, other):
@@ -393,6 +392,22 @@ def isColumns(ctype):
         return True
     return False
 
+def printHeader():
+    r = options.sep.join(('Id','Name'))
+    if isColumns('SRC'):
+        r += options.sep+'Sources'
+    if isColumns('DST'):
+        r += options.sep+'Destinations'
+    if isColumns('SRV'):
+        r += options.sep+'Services'
+    if isColumns('ACT'):
+        r += options.sep+'Actions'
+    if isColumns('LOG'):
+        r += options.sep+'Log'
+    if isColumns('COMP'):
+        r += options.sep+'Complexity'
+    return r
+
 parser = opt.OptionParser()
 fgroup = opt.OptionGroup(parser, "Filtering options", "Options used to filter rules")
 ogroup = opt.OptionGroup(parser, "Output options", "Options used to print or write rules")
@@ -426,6 +441,8 @@ ogroup.add_option("-t", "--show-columns", dest="columns", default="SRC,DST,SRV,A
         help="Choose columns to print (SRC,DST,SRV,ACT,LOG,COMP)")
 ogroup.add_option("-m", "--print-more", dest="printmore", action="store_true", default=False,
         help="Print more information about Host, Network or Services")
+ogroup.add_option("-v", "--csv-separator", dest="sep", default=";", metavar="SEP",
+        help="CVS separator")
 fgroup.add_option("-a", "--all-rules", action="store_true", dest="disrules", default=False,
         help="show all rules (even disabled)")
 
@@ -499,6 +516,8 @@ if not options.outfile is None:
         pass
 
 if outfile is None:
+    if options.outxml is False:
+        print printHeader()
     for rule in resrules:
         if rule.comp >= options.compl and (rule.enabled or options.disrules):
             if options.outxml is True:
@@ -519,6 +538,7 @@ elif options.outxml is True:
 else:
     print HEADER+'Creating output file '+outfile+' ...'+ENDC,
     sys.stdout.flush()
+    outfile.write(printHeader)
     for rule in resrules:
         if rule.comp >= options.compl and (rule.enabled or options.disrules):
             outfile.write(str(rule)+'\n')
