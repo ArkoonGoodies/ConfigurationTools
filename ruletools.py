@@ -45,7 +45,10 @@ class Host:
         self.ip = ip 
 
     def __repr__(self):
-        return self.name.encode('latin_1')+' ('+printIP(self.ip)+')'
+        r = self.name.encode(options.charset)
+        if options.printmore:
+            r += ' ('+printIP(self.ip)+')'
+        return r
 
     def isHost(self, ip):
         if ip == self.ip or ip == 0:
@@ -63,7 +66,10 @@ class Network:
         self.bitmask = mask
 
     def __repr__(self):
-        return self.name.encode('latin_1')+'('+printIP(self.ip)+'/'+str(self.bitmask)+')'
+        r = self.name.encode(options.charset)
+        if options.printmore is True:
+            r += '('+printIP(self.ip)+'/'+str(self.bitmask)+')'
+        return r
 
     def isInNetwork(self, ip):
         if ip == 0 or (ip & self.mask) == (self.ip & self.mask):
@@ -83,10 +89,13 @@ class Service:
         self.dportto = dportto
 
     def __repr__(self):
-        if self.dportfrom != self.dportto:
-            return self.name.encode('latin_1')+'('+printProto(self.proto)+'/'+str(self.dportfrom)+'-->'+str(self.dportto)+')'
-        else:
-            return self.name.encode('latin_1')+'('+printProto(self.proto)+'/'+str(self.dportfrom)+')'
+        r = self.name.encode(options.charset)
+        if options.printmore is True: 
+            if self.dportfrom != self.dportto:
+                r += '('+printProto(self.proto)+'/'+str(self.dportfrom)+'-->'+str(self.dportto)+')'
+            else:
+                r += '('+printProto(self.proto)+'/'+str(self.dportfrom)+')'
+        return r
 
     def isService(self, proto, sport, dport):
         r = True
@@ -110,7 +119,7 @@ class Group:
         self.refs.add(Guid)
 
     def __repr__(self):
-        return self.name.encode('latin_1')
+        return self.name.encode(options.charset)
 
     def isInGroup(self, ip, proto, sport, dport):
         r = False
@@ -147,38 +156,43 @@ class Rule:
 
     def __repr__(self):
         r = str(self.Id)
-        r += ' - ' + self.name.encode('latin_1')
-        r += ' (Sources:'
-        if len(self.sources) != 0:
-            for s in self.sources:
-                r += printGuid(s)
-                if not s is self.sources[-1]:
-                    r += ','
-        else:
-            r += 'All'
+        r += ' - ' + self.name.encode(options.charset)
+        if isColumns('SRC') is True:
+            r += ' Sources:'
+            if len(self.sources) != 0:
+                for s in self.sources:
+                    r += printGuid(s)
+                    if not s is self.sources[-1]:
+                        r += ','
+            else:
+                r += 'All'
 
-        r +=' Destinations:' 
-        if len(self.dests) != 0:
-            for d in self.dests:
-                r += printGuid(d)
-                if not d is self.dests[-1]:
-                    r += ','
-        else:
-            r += 'All'
+        if isColumns('DST') is True:
+            r +=' Destinations:' 
+            if len(self.dests) != 0:
+                for d in self.dests:
+                    r += printGuid(d)
+                    if not d is self.dests[-1]:
+                        r += ','
+            else:
+                r += 'All'
 
-        r+=' Services:' 
-        if len(self.srvcs) != 0:
-            for s in self.srvcs:
-                r += printGuid(s)
-                if not s is self.srvcs[-1]:
-                    r += ','
-        else:
-            r += 'All'
+        if isColumns('SRV') is True:
+            r+=' Services:' 
+            if len(self.srvcs) != 0:
+                for s in self.srvcs:
+                    r += printGuid(s)
+                    if not s is self.srvcs[-1]:
+                        r += ','
+            else:
+                r += 'All'
 
-        r += ' Action:'+self.action
-        r += ' Log:'+self.log
-        r += ' Complexity:'+str(self.comp)
-        r += ')'
+        if isColumns('ACT') is True:
+            r += ' Action:'+self.action
+        if isColumns('LOG') is True:
+            r += ' Log:'+self.log
+        if isColumns('COMP') is True:
+            r += ' Complexity:'+str(self.comp)
         return r
         
     def __cmp__(self, other):
@@ -373,6 +387,12 @@ def printGuid(Guid):
     else:
         return Guid
 
+def isColumns(ctype):
+    optionlist = options.columns.split(',')
+    if ctype in optionlist:
+        return True
+    return False
+
 parser = opt.OptionParser()
 fgroup = opt.OptionGroup(parser, "Filtering options", "Options used to filter rules")
 ogroup = opt.OptionGroup(parser, "Output options", "Options used to print or write rules")
@@ -384,22 +404,28 @@ ogroup.add_option("-x", "--xml", action="store_true", dest="outxml",
         help="print or write in XML format", default=False)
 parser.add_option("-p", "--print", action="store_true", dest="printrules", default=False,
         help="just print rules and exit (filtering options will be ignored)")
-fgroup.add_option("-s", "--ip-src", dest="ipsrc", default="0.0.0.0",
+fgroup.add_option("-s", "--ip-src", dest="ipsrc", default="0.0.0.0", metavar="aaa.bbb.ccc.ddd",
         help="packet source IP")
-fgroup.add_option("-d", "--ip-dst", dest="ipdst", default="0.0.0.0",
+fgroup.add_option("-d", "--ip-dst", dest="ipdst", default="0.0.0.0", metavar="aaa.bbb.ccc.ddd",
         help="packet destination IP")
-fgroup.add_option("-P", "--ip-protocol", type="int", dest="ipproto", default=0,
+fgroup.add_option("-P", "--ip-protocol", type="int", dest="ipproto", default=0, metavar="PROTOCOL",
         help="packet IP protocol number")
-fgroup.add_option("-S", "--port-src", type="int", dest="portsrc", default=0,
+fgroup.add_option("-S", "--port-src", type="int", dest="portsrc", default=0, metavar="SOURCEPORT",
         help="packet source port number")
-fgroup.add_option("-D", "--port-dst", type="int", dest="portdst", default=0,
+fgroup.add_option("-D", "--port-dst", type="int", dest="portdst", default=0, metavar="DESTPORT",
         help="packet destination port number")
 fgroup.add_option("-1", "--first-match", action="store_true", dest="firstm", default=False,
         help="stop filtering after first match")
-fgroup.add_option("-c", "--complexity", type="int", dest="compl", default=0,
+fgroup.add_option("-c", "--complexity", type="int", dest="compl", default=0, metavar="COMPLEXITY",
         help="rule complexity threshold")
-ogroup.add_option("-C", "--sort-by-complxity", action="store_true", dest="sortcomp", default=False,
+ogroup.add_option("-C", "--sort-by-complexity", action="store_true", dest="sortcomp", default=False,
         help="sort Result by complexity")
+ogroup.add_option("-e", "--encode", dest="charset", default="latin_1", metavar="CHARSET",
+        help="sort Result by complexity")
+ogroup.add_option("-t", "--show-columns", dest="columns", default="SRC,DST,SRV,ACT,LOG,COMP", metavar="SRC,DST,SRV,ACT,LOG,COMP",
+        help="Choose columns to print (SRC,DST,SRV,ACT,LOG,COMP)")
+ogroup.add_option("-m", "--print-more", dest="printmore", action="store_true", default=False,
+        help="Print more information about Host, Network or Services")
 fgroup.add_option("-a", "--all-rules", action="store_true", dest="disrules", default=False,
         help="show all rules (even disabled)")
 
