@@ -507,13 +507,11 @@ print OKGREEN+'[done]'+ENDC
 outfile = None
 if not options.outfile is None:
     try:
-        if options.outxml is False:
-            # Don't need to open file for ET.write
-            outfile = open(options.outfile, 'w')
-        else:
-            outfile = options.outfile
+        outfile = open(options.outfile, 'w')
     except:
         pass
+else:
+    outfile = options.outfile
 
 if outfile is None:
     if options.outxml is False:
@@ -525,7 +523,7 @@ if outfile is None:
             else:
                 print rule
 elif options.outxml is True:
-    print HEADER+'Creating output file '+outfile+' ...'+ENDC,
+    print HEADER+'Creating output file '+options.outfile+' ...'+ENDC,
     sys.stdout.flush()
     outET = ET.ElementTree()
     outRoot = ET.Element('Rules')
@@ -536,9 +534,9 @@ elif options.outxml is True:
     outET.write(outfile)
     print OKGREEN+'[done]'+ENDC
 else:
-    print HEADER+'Creating output file '+outfile+' ...'+ENDC,
+    print HEADER+'Creating output file '+options.outfile+' ...'+ENDC,
     sys.stdout.flush()
-    outfile.write(printHeader)
+    outfile.write(printHeader())
     for rule in resrules:
         if rule.comp >= options.compl and (rule.enabled or options.disrules):
             outfile.write(str(rule)+'\n')
